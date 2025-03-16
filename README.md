@@ -52,7 +52,6 @@ This project is licensed under the PiOS License - see the [LICENSE](LICENSE) fil
 
 ## Contact
 For inquiries and support, reach out via:
-- Email: support@truthweb.com
-- Twitter: [@TruthWebOfficial](https://twitter.com/TruthWebOfficial)
+- Email: support@truthweb.pi
 - Twitter: Founder [@mrwainofficial] (https://x.com/mrwainofficial)
 
