@@ -10,36 +10,108 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet"/>
     <!-- Google Fonts: Poppins -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"/>
+    <!-- GSAP CDN for animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <!-- Three.js CDN for 3D coin -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <style>
+      /* CSS Variables for Theming */
       :root {
         --primary-color: #000000;
         --secondary-color: #FFFFFF;
         --highlight-color: #CCCCCC;
-        --text-color: #FFFFFF;
+        --text-color: #333333;
         --button-bg-color: #000000;
         --button-text-color: #FFFFFF;
         --button-hover-bg-color: #FFFFFF;
         --button-hover-text-color: #000000;
-        --background-color: #FFFFFF;
+        --background-color: #F5F5F5;
         --accent-color: #FFD700;
+        --gradient-accent: linear-gradient(135deg, #FFD700, #FF8C00);
+        --coin-bg-color: #F5F5F5;
+        --banner-overlay: rgba(0, 0, 0, 0.3);
+        --donation-bg-color: #FF4500;
+        --night-sky-bg: linear-gradient(135deg, #0A0A14 0%, #1C2526 50%, #2A2A2A 100%);
       }
+
+      [data-theme="dark"] {
+        --primary-color: #FFFFFF;
+        --secondary-color: #1A1A1A;
+        --highlight-color: #666666;
+        --text-color: #E0E0E0;
+        --button-bg-color: #FFD700;
+        --button-text-color: #000000;
+        --button-hover-bg-color: #FF8C00;
+        --button-hover-text-color: #FFFFFF;
+        --background-color: var(--night-sky-bg);
+        --coin-bg-color: #0A0A14;
+        --banner-overlay: rgba(0, 0, 0, 0.5);
+        --donation-bg-color: #FF4500;
+      }
+
+      /* Base Styles */
       html { scroll-behavior: smooth; }
       body {
         background: var(--background-color);
-        color: var(--primary-color);
+        color: var(--text-color);
         font-family: 'Poppins', sans-serif;
         margin: 0;
         padding: 0;
         overflow-x: hidden;
         line-height: 1.6;
         padding-bottom: 60px;
+        transition: background 0.3s ease, color 0.3s ease;
+        position: relative;
       }
+
+      /* Full-page Canvas for Night Mode Particles */
+      #night-canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        opacity: 0.8;
+        display: none;
+      }
+      [data-theme="dark"] #night-canvas { display: block; }
+
+      /* Custom Cursor */
+      .custom-cursor {
+        position: fixed;
+        width: 20px;
+        height: 20px;
+        background: var(--accent-color);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 9999;
+        transform: translate(-50%, -50%);
+        transition: transform 0.1s ease;
+        box-shadow: 0 0 10px var(--accent-color);
+      }
+      .custom-cursor.hover { transform: translate(-50%, -50%) scale(1.5); }
+
+      /* Progress Bar */
+      .progress-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 0;
+        height: 4px;
+        background: var(--gradient-accent);
+        z-index: 1001;
+        box-shadow: 0 0 10px var(--accent-color);
+      }
+
+      /* Sticky Header */
       .sticky-header {
         position: fixed;
         top: 0;
         width: 100%;
         z-index: 1000;
-        background: var(--primary-color);
+        background: var(--secondary-color);
         color: var(--text-color);
         transition: all 0.3s ease;
         display: flex;
@@ -51,31 +123,38 @@
       }
       .sticky-header.hidden { transform: translateY(-100%); }
       .sticky-header.scrolled {
-        background: var(--secondary-color);
-        color: var(--primary-color);
+        background: var(--primary-color);
+        color: var(--secondary-color);
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
-      }
-      @keyframes slideInHeader {
-        from { transform: translateY(-100%); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
       }
       .sticky-header .logo-text {
         font-size: 1.5rem;
         font-weight: 700;
+        background: var(--gradient-accent);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+      }
+
+      /* Theme Toggle */
+      .theme-toggle {
+        background: none;
+        border: none;
         color: var(--text-color);
-        transition: color 0.3s ease;
-      }
-      .sticky-header.scrolled .logo-text {
-        color: var(--primary-color);
-      }
-      .burger-btn {
-        display: flex;
+        font-size: 1.25rem;
         cursor: pointer;
+        transition: transform 0.3s ease;
+      }
+      .theme-toggle:hover { transform: scale(1.2); }
+
+      /* Burger Menu */
+      .burger-btn {
+        display: none;
         flex-direction: column;
         justify-content: center;
         width: 30px;
         height: 30px;
-        margin-left: 0.5rem;
+        cursor: pointer;
         transition: transform 0.3s ease;
       }
       .burger-btn:hover { transform: scale(1.1); }
@@ -86,12 +165,12 @@
         margin: 2px 0;
         transition: all 0.3s ease;
       }
-      .sticky-header.scrolled .burger-btn span {
-        background: var(--primary-color);
-      }
+      .sticky-header.scrolled .burger-btn span { background: var(--secondary-color); }
       .burger-btn.open span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
       .burger-btn.open span:nth-child(2) { opacity: 0; transform: scale(0); }
       .burger-btn.open span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
+
+      /* Mobile Menu */
       .mobile-menu {
         position: fixed;
         top: 64px;
@@ -99,18 +178,14 @@
         width: 80%;
         max-width: 300px;
         height: calc(100vh - 64px);
-        background: var(--primary-color);
+        background: var(--secondary-color);
         color: var(--text-color);
         transition: left 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
         z-index: 999;
         padding: 1rem;
-        animation: fadeInMenu 0.4s ease-out forwards;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
       }
       .mobile-menu.open { left: 0; }
-      @keyframes fadeInMenu {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
       .mobile-menu ul { list-style: none; padding: 0; }
       .mobile-menu .nav-item a {
         display: block;
@@ -119,74 +194,53 @@
         font-size: 1.1rem;
         transition: all 0.3s ease;
       }
-      .mobile-menu .nav-item a:hover {
-        color: var(--highlight-color);
-        transform: translateX(10px) scale(1.05);
-      }
-      .desktop-nav { display: flex; }
-      .desktop-nav .nav-item {
-        transition: transform 0.3s ease;
-        animation: fadeInUp 0.5s ease-in-out forwards;
-      }
+      .mobile-menu .nav-item a:hover { color: var(--accent-color); transform: translateX(10px); }
+
+      /* Desktop Navigation */
+      .desktop-nav { display: none; }
       .desktop-nav .nav-item a {
         color: var(--text-color);
         padding: 0.5rem 1rem;
         transition: all 0.3s ease;
+        text-shadow: 0 0 2px rgba(255, 255, 255, 0.3);
       }
-      .sticky-header.scrolled .desktop-nav .nav-item a {
-        color: var(--primary-color);
-      }
-      .desktop-nav .nav-item a:hover {
-        color: var(--highlight-color);
-        transform: scale(1.1);
-      }
-      .desktop-nav .nav-item:nth-child(1) { animation-delay: 0.1s; }
-      .desktop-nav .nav-item:nth-child(2) { animation-delay: 0.2s; }
-      .desktop-nav .nav-item:nth-child(3) { animation-delay: 0.3s; }
-      .desktop-nav .nav-item:nth-child(4) { animation-delay: 0.4s; }
-      .desktop-nav .nav-item:nth-child(5) { animation-delay: 0.5s; }
-      .desktop-nav .nav-item:nth-child(6) { animation-delay: 0.6s; }
-      .desktop-nav .nav-item:nth-child(7) { animation-delay: 0.7s; }
-      .desktop-nav .nav-item:nth-child(8) { animation-delay: 0.8s; }
-      .desktop-nav .nav-item:hover {
-        transform: scale(1.1) translateY(-5px);
-      }
+      .sticky-header.scrolled .desktop-nav .nav-item a { color: var(--secondary-color); }
+      .desktop-nav .nav-item a:hover { color: var(--accent-color); transform: scale(1.1); }
+
+      /* Search Container */
       .search-container {
         position: relative;
         flex-grow: 1;
         max-width: 400px;
         margin: 0 1rem;
-        transition: all 0.3s ease;
       }
       .search-input {
         width: 100%;
         padding: 0.5rem 2.5rem 0.5rem 1rem;
         border: 1px solid var(--highlight-color);
         border-radius: 9999px;
-        background: var(--secondary-color);
-        color: var(--primary-color);
+        background: var(--background-color);
+        color: var(--text-color);
         font-size: 1rem;
         outline: none;
         transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       }
       .search-input:focus {
-        border-color: var(--primary-color);
+        border-color: var(--accent-color);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        transform: scale(1.02) translateY(-2px);
+        transform: scale(1.02);
       }
       .search-icon {
         position: absolute;
         right: 10px;
         top: 50%;
         transform: translateY(-50%);
-        color: var(--primary-color);
+        color: var(--text-color);
         font-size: 1.2rem;
-        transition: transform 0.3s ease, color 0.3s ease;
+        transition: transform 0.3s ease;
       }
-      .sticky-header.scrolled .search-icon {
-        color: var(--primary-color);
-      }
+      .sticky-header.scrolled .search-icon { color: var(--secondary-color); }
       .search-input:focus + .search-icon { transform: translateY(-50%) scale(1.1); }
       .search-results {
         position: absolute;
@@ -201,249 +255,236 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         z-index: 60;
         display: none;
-        animation: dropIn 0.3s ease-out forwards;
       }
       .search-results.active { display: block; }
-      @keyframes dropIn {
-        from { opacity: 0; transform: translateY(-10px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
       .search-result-item {
         padding: 0.75rem;
-        color: var(--primary-color);
+        color: var(--text-color);
         border-bottom: 1px solid var(--highlight-color);
         cursor: pointer;
-        transition: background 0.3s ease, transform 0.2s ease;
+        transition: background 0.3s ease;
       }
-      .search-result-item:hover {
-        background: var(--highlight-color);
-        transform: scale(1.02);
-      }
+      .search-result-item:hover { background: var(--highlight-color); }
+
+      /* Icons */
       .icon {
         color: var(--text-color);
         font-size: 1.25rem;
-        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.3s ease;
+        transition: transform 0.3s ease;
         margin-left: 0.75rem;
       }
-      .sticky-header.scrolled .icon {
-        color: var(--primary-color);
-      }
-      .icon:hover {
-        transform: scale(1.15) rotate(5deg);
-      }
-      .floating-effect {
-        transition: transform 0.3s ease;
-      }
-      .floating-effect:hover {
-        transform: translateY(-5px) rotate(5deg);
-      }
+      .sticky-header.scrolled .icon { color: var(--secondary-color); }
+      .icon:hover { transform: scale(1.15); }
+
+      /* Floating Effect */
+      .floating-effect:hover { transform: translateY(-5px); }
+
+      /* Main Content */
       main { margin-top: 64px; }
+
+      /* Hero Section */
       .hero {
         min-height: 100vh;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        background: var(--primary-color);
+        background: transparent;
         color: var(--text-color);
         text-align: center;
         padding: 1rem;
         position: relative;
         overflow: hidden;
-        animation: fadeInHero 1s ease-out forwards;
       }
-      @keyframes fadeInHero {
-        from { opacity: 0; transform: scale(0.95); }
-        to { opacity: 1; transform: scale(1); }
-      }
-      .hero::after {
-        content: '';
+      #coin-canvas {
         position: absolute;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent);
-        animation: pulseGlow 3s infinite alternate, float 6s infinite ease-in-out;
+        z-index: 0;
+        opacity: 0.9;
       }
-      @keyframes pulseGlow {
-        0% { opacity: 0.5; }
-        100% { opacity: 0.8; }
-      }
-      @keyframes float {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-20px); }
-      }
+      .hero-content { position: relative; z-index: 1; }
       .glow-text {
         font-size: 3rem;
         font-weight: 700;
-        text-shadow: 0 0 10px var(--highlight-color);
-        animation: glow 2s infinite alternate, bounce 3s infinite ease-in-out;
+        background: var(--gradient-accent);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: pulseGlow 2s infinite alternate;
+        text-shadow: 0 0 15px rgba(255, 215, 0, 0.7);
       }
-      @keyframes glow {
-        0% { text-shadow: 0 0 10px var(--highlight-color); }
-        100% { text-shadow: 0 0 20px var(--highlight-color); }
+      @keyframes pulseGlow {
+        0% { text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+        100% { text-shadow: 0 0 20px rgba(255, 215, 0, 0.8); }
       }
-      @keyframes bounce {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-10px); }
+
+      /* Download Buttons */
+      .download-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 1rem;
+        flex-wrap: wrap;
       }
+      .download-btn {
+        display: inline-block;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+      .download-btn img {
+        height: 40px;
+        width: auto;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+      }
+      .download-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+      @media (max-width: 640px) {
+        .download-buttons { flex-direction: column; gap: 0.5rem; }
+        .download-btn img { height: 36px; }
+      }
+
+      /* Buttons */
       .btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         background: var(--button-bg-color);
         color: var(--button-text-color);
-        padding: 0.5rem 1.5rem;
-        border: 1px solid var(--highlight-color);
+        padding: 0.75rem 2rem;
         border-radius: 9999px;
         font-size: 0.9rem;
         font-weight: 600;
         text-decoration: none;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
         transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        position: relative;
-        z-index: 1;
-        min-width: 100px;
-        margin-top: 1rem;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-        animation: pulse 2s infinite;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        animation: bounce 2s infinite ease-in-out;
+      }
+      @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
       }
       .btn:hover {
         background: var(--button-hover-bg-color);
         color: var(--button-hover-text-color);
-        transform: scale(1.05) translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      }
-      .btn:active {
-        transform: scale(0.98);
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+        transform: scale(1.05);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
       }
       .btn.accent {
         background: var(--accent-color);
         color: var(--primary-color);
-        border: none;
       }
-      .btn.accent:hover {
-        background: #FFA500;
-        color: var(--primary-color);
+      .btn.accent:hover { background: #FFA500; }
+      .btn.donation {
+        background: var(--donation-bg-color);
+        color: #FFFFFF;
       }
-      @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-        100% { transform: scale(1); }
+      .btn.donation:hover {
+        background: #FF6347;
+        color: #FFFFFF;
       }
+
+      /* Sections */
       section { padding: 2rem 1rem; }
+
+      /* Cards */
       .card {
         background: var(--secondary-color);
         border: 1px solid var(--highlight-color);
         border-radius: 10px;
         padding: 1.5rem;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        animation: slideInCard 0.5s ease-out forwards;
+        transition: transform 0.3s ease;
+        color: var(--text-color);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
       }
-      .card:hover {
-        transform: translateY(-10px) rotate(2deg);
-        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.3);
-      }
-      @keyframes slideInCard {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
+      .card:hover { transform: translateY(-10px); box-shadow: 0 8px 15px rgba(0, 0, 0, 0.3); }
       .card i {
         font-size: 2.5rem;
         margin-bottom: 1rem;
-        color: var(--primary-color);
+        color: var(--text-color);
         transition: transform 0.3s ease;
       }
       .card:hover i { transform: scale(1.1); }
-      .feed-container {
-        max-width: 600px;
-        margin: 0 auto;
-      }
+
+      /* Feed Section (X-Style) */
+      .feed-container { max-width: 600px; margin: 0 auto; }
       .feed-item {
-        padding: 1rem;
-        border-bottom: 1px solid var(--highlight-color);
-        transition: background 0.2s ease, transform 0.3s ease;
-      }
-      .feed-item:hover {
-        background: rgba(204, 204, 204, 0.1);
-        transform: scale(1.01);
-      }
-      .feed-item:last-child { border-bottom: none; }
-      .feed-header {
         display: flex;
-        align-items: center;
-        margin-bottom: 0.5rem;
+        padding: 0.75rem;
+        border-bottom: 1px solid var(--highlight-color);
+        transition: background 0.2s ease;
       }
+      .feed-item:hover { background: rgba(204, 204, 204, 0.1); }
+      .feed-item:last-child { border-bottom: none; }
       .feed-avatar {
-        font-size: 2rem;
-        margin-right: 0.75rem;
-        color: var(--primary-color);
+        font-size: 1.5rem;
+        margin-right: 0.5rem;
+        color: var(--text-color);
         transition: transform 0.3s ease;
       }
       .feed-item:hover .feed-avatar { transform: scale(1.1); }
-      .feed-user {
-        font-weight: 600;
-        font-size: 1rem;
-      }
-      .feed-time {
-        font-size: 0.85rem;
-        color: var(--highlight-color);
-        margin-left: 0.5rem;
-      }
-      .feed-content {
-        font-size: 1rem;
-        margin-bottom: 0.75rem;
-        line-height: 1.4;
-      }
-      .feed-actions {
-        display: flex;
-        justify-content: space-between;
-        max-width: 300px;
-      }
+      .feed-content-wrapper { flex-grow: 1; }
+      .feed-header { display: flex; align-items: center; margin-bottom: 0.25rem; }
+      .feed-user { font-weight: 600; font-size: 0.9rem; color: var(--text-color); }
+      .feed-time { font-size: 0.75rem; color: var(--highlight-color); margin-left: 0.5rem; }
+      .feed-content { font-size: 0.9rem; margin-bottom: 0.5rem; line-height: 1.3; color: var(--text-color); }
+      .feed-actions { display: flex; gap: 1.5rem; }
       .feed-actions button {
         background: none;
         border: none;
-        color: var(--primary-color);
-        font-size: 0.85rem;
+        color: var(--text-color);
+        font-size: 0.8rem;
         cursor: pointer;
         display: flex;
         align-items: center;
         gap: 0.25rem;
-        padding: 0.2rem 0.5rem;
-        border-radius: 9999px;
-        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        transition: all 0.3s ease;
       }
-      .feed-actions button i { font-size: 1rem; }
-      .feed-actions button:hover {
-        background: var(--highlight-color);
-        color: var(--primary-color);
-        transform: scale(1.1);
-      }
+      .feed-actions button:hover { color: var(--accent-color); transform: scale(1.1); }
+
+      /* Feed Banner */
       .feed-banner {
-        background: var(--secondary-color);
+        background: var(--banner-bg, var(--background-color));
         border: 1px solid var(--highlight-color);
         border-radius: 10px;
-        padding: 1rem;
-        margin-bottom: 1rem;
+        padding: 0.75rem;
+        margin-bottom: 0.75rem;
         text-align: center;
-        animation: slideInCard 0.5s ease-out forwards;
+        color: var(--text-color);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        position: relative;
       }
-      .feed-banner img {
+      .feed-banner::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
         width: 100%;
-        height: auto;
-        border-radius: 8px;
-        margin-bottom: 0.5rem;
+        height: 100%;
+        background: var(--banner-overlay);
+        z-index: 0;
+        border-radius: 10px;
       }
+      .feed-banner * { position: relative; z-index: 1; }
+      [data-theme="dark"] .feed-banner { --banner-bg: linear-gradient(135deg, #1A1A1A, #2A2A2A); }
+      [data-theme="light"] .feed-banner { --banner-bg: linear-gradient(135deg, #FFD700, #FF8C00); }
+      .feed-banner p { 
+        font-weight: 600; 
+        text-shadow: 0 0 5px rgba(255, 255, 255, 0.8);
+      }
+      .feed-banner .download-buttons { margin-top: 0.5rem; flex-direction: column; gap: 0.5rem; }
+
+      /* Footer Menu */
       .footer-menu {
         position: fixed;
         bottom: 0;
         left: 0;
         width: 100%;
         height: 60px;
-        background: var(--primary-color);
+        background: var(--secondary-color);
         color: var(--text-color);
         display: flex;
         justify-content: space-around;
@@ -451,121 +492,106 @@
         z-index: 1000;
         box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
         transition: transform 0.3s ease;
-        animation: slideInFooter 0.5s ease-out forwards;
       }
       .footer-menu.hidden { transform: translateY(100%); }
-      @keyframes slideInFooter {
-        from { transform: translateY(100%); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
-      }
       .footer-menu a {
         color: var(--text-color);
         font-size: 1.5rem;
-        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        transition: transform 0.3s ease;
       }
       .footer-menu a:hover { transform: scale(1.2); }
+
+      /* Footer */
       footer {
-        background: var(--primary-color);
+        background: var(--secondary-color);
         color: var(--text-color);
         text-align: center;
         padding: 2rem 1rem;
         position: relative;
         z-index: 10;
-        animation: fadeIn 1.5s ease-in-out;
-      }
-      @keyframes fadeIn {
-        0% { opacity: 0; }
-        100% { opacity: 1; }
-      }
-      @keyframes fadeInUp {
-        0% { opacity: 0; transform: translateY(20px); }
-        100% { opacity: 1; transform: translateY(0); }
       }
       footer .social-icons a, footer .footer-links a {
         color: var(--text-color);
-        transition: color 0.3s ease, transform 0.3s ease;
+        transition: transform 0.3s ease, color 0.3s ease;
       }
       footer .social-icons a:hover, footer .footer-links a:hover {
-        color: var(--highlight-color);
+        color: var(--accent-color);
         transform: scale(1.1);
       }
-      footer .social-icons { margin-bottom: 1rem; }
-      footer .social-icons a {
-        font-size: 1.25rem;
-        margin: 0 0.5rem;
-      }
-      footer .footer-links a {
-        margin: 0 0.5rem;
-        text-decoration: none;
-      }
-      .download-buttons {
+      footer .social-icons { margin: 1rem 0; }
+      footer .social-icons a { font-size: 1.25rem; margin: 0 0.5rem; }
+      footer .footer-links a { margin: 0 0.5rem; text-decoration: none; }
+      footer .donation-btn { margin-bottom: 1rem; }
+
+      /* Stats */
+      .stat-item { transition: transform 0.3s ease; }
+      .stat-item:hover { transform: scale(1.05); }
+      .stat-item i { color: var(--text-color); transition: transform 0.3s ease; }
+      .stat-item:hover i { transform: scale(1.1); }
+
+      /* Back to Top Button */
+      .back-to-top {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: var(--accent-color);
+        color: var(--primary-color);
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
         display: flex;
-        gap: 1rem;
-        justify-content: center;
-        margin-top: 1rem;
-      }
-      .download-btn img {
-        height: 40px;
-        transition: transform 0.3s ease;
-      }
-      .download-btn:hover img { transform: scale(1.1); }
-      #user-stats { position: relative; z-index: 10; }
-      .stat-item {
-        display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
-        transition: transform 0.3s ease;
+        font-size: 1.5rem;
+        cursor: pointer;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+        z-index: 1000;
       }
-      .stat-item:hover { transform: scale(1.05); }
-      .stat-item i {
-        color: var(--text-color);
-        transition: transform 0.3s ease;
+      .back-to-top.visible { opacity: 1; visibility: visible; }
+
+      /* Skeleton Loading */
+      .skeleton {
+        background: var(--highlight-color);
+        animation: skeleton-loading 1s infinite alternate;
       }
-      .stat-item:hover i { transform: scale(1.1); }
+      @keyframes skeleton-loading {
+        0% { opacity: 0.6; }
+        100% { opacity: 1; }
+      }
+
+      /* Media Queries */
       @media (max-width: 640px) {
         .burger-btn { display: flex; }
         .desktop-nav { display: none; }
         .search-container { max-width: 120px; margin: 0 0.5rem; }
         .sticky-header { padding: 0 0.5rem; }
         .logo-text { font-size: 1.25rem; }
-        .icon { font-size: 1.1rem; margin-left: 0.5rem; }
         .glow-text { font-size: 1.75rem; }
-        .btn { padding: 0.4rem 1rem; font-size: 0.85rem; min-width: 80px; }
+        .btn { padding: 0.5rem 1.5rem; font-size: 0.85rem; }
         .card i { font-size: 2rem; }
-        .card h3 { font-size: 1.25rem; }
-        .section-title { font-size: 1.5rem; }
         .feed-container { max-width: 100%; padding: 0 0.5rem; }
-        .feed-item img { max-width: 100%; }
-        .feed-actions { max-width: 100%; }
         footer { padding-bottom: 80px; }
-        footer .social-icons a, footer .footer-links a { font-size: 0.9rem; }
-        .download-buttons { flex-direction: column; gap: 0.5rem; }
-        #user-stats .text-4xl { font-size: 1.75rem; }
-        #user-stats .text-2xl { font-size: 1.25rem; }
-        #user-stats .fa-3x { font-size: 2rem; }
       }
       @media (min-width: 641px) and (max-width: 1024px) {
-        .burger-btn { display: none; }
         .desktop-nav { display: flex; }
         .search-container { max-width: 300px; }
         .glow-text { font-size: 2.5rem; }
-        .btn { padding: 0.5rem 1.2rem; }
-        .card i { font-size: 2.25rem; }
         .footer-menu { display: none; }
-        footer .social-icons a, footer .footer-links a { font-size: 1rem; }
       }
       @media (min-width: 1025px) {
-        .burger-btn { display: none; }
         .desktop-nav { display: flex; }
         .search-container { max-width: 400px; }
         .glow-text { font-size: 3rem; }
         .footer-menu { display: none; }
-        footer .social-icons a, footer .footer-links a { font-size: 1rem; }
       }
     </style>
 </head>
 <body>
+    <div class="progress-bar"></div>
+    <div class="custom-cursor"></div>
+    <canvas id="night-canvas"></canvas>
     <header class="sticky-header">
         <div class="flex items-center">
             <a href="index.html" class="text-inherit flex items-center">
@@ -577,8 +603,11 @@
             <i class="fas fa-search search-icon"></i>
             <div class="search-results"></div>
         </div>
-        <div class="flex items-center">
-            <nav class="desktop-nav hidden md:flex items-center">
+        <div class="flex items-center gap-4">
+            <button class="theme-toggle" aria-label="Toggle Dark Mode">
+                <i class="fas fa-moon"></i>
+            </button>
+            <nav class="desktop-nav">
                 <ul class="flex space-x-4">
                     <li class="nav-item"><a href="index.html">Home</a></li>
                     <li class="nav-item"><a href="marketplace.html">Marketplace</a></li>
@@ -590,10 +619,10 @@
                     <li class="nav-item"><a href="about.html">About</a></li>
                 </ul>
             </nav>
-            <a href="marketplace.html" class="icon floating-effect"><i class="fas fa-shopping-cart"></i></a>
-            <a href="profile.html" class="icon floating-effect"><i class="fas fa-user"></i></a>
-            <a href="wallet.html" class="icon floating-effect"><i class="fas fa-wallet"></i></a>
-            <div class="burger-btn">
+            <a href="marketplace.html" class="icon floating-effect" aria-label="Cart"><i class="fas fa-shopping-cart"></i></a>
+            <a href="profile.html" class="icon floating-effect" aria-label="Profile"><i class="fas fa-user"></i></a>
+            <a href="wallet.html" class="icon floating-effect" aria-label="Wallet"><i class="fas fa-wallet"></i></a>
+            <div class="burger-btn" role="button" aria-label="Toggle Menu">
                 <span></span>
                 <span></span>
                 <span></span>
@@ -616,6 +645,7 @@
 
     <main>
         <section class="hero">
+            <canvas id="coin-canvas"></canvas>
             <h1 class="glow-text">TruthWeb</h1>
             <p class="text-xl mt-4 md:text-2xl">The Ultimate Decentralized Pi Network Hub</p>
             <p class="text-lg mt-2">Join over 5 million Pioneers worldwide in the leading platform for Pi Network</p>
@@ -659,159 +689,43 @@
             </div>
         </section>
 
-        <section id="hub" class="py-16 px-4">
-            <h2 class="section-title text-3xl font-bold text-center mb-8">TruthWeb: Your Global Pi Network Hub</h2>
-            <div class="max-w-4xl mx-auto text-center">
-                <p class="text-lg mb-6 md:text-xl">TruthWeb is the premier decentralized hub for Pi Network Pioneers, connecting over 5 million users across 180+ countries. Built on trust, transparency, and innovation, TruthWeb offers a vibrant marketplace, secure wallet management, and a thriving global community—all powered by Pi, the First Digital Currency you can mine on your phone.</p>
-                <a href="about.html" class="btn">Learn More</a>
-            </div>
-        </section>
-
         <section id="core-features" class="py-16 px-4">
-            <h2 class="section-title text-3xl font-bold text-center mb-8">Core Features</h2>
+            <h2 class="text-3xl font-bold text-center mb-8">Core Features</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-                <div class="card"><i class="fas fa-shopping-cart"></i><h3 class="text-xl font-semibold mb-2">Pi-Powered Marketplace</h3><p>Buy and sell with Pi in a secure, decentralized environment.</p><a href="pi-powered-marketplace.html" class="btn">Explore</a></div>
-                <div class="card"><i class="fas fa-exchange-alt"></i><h3 class="text-xl font-semibold mb-2">Decentralized Transactions</h3><p>Secure peer-to-peer trading with zero intermediaries.</p><a href="decentralized-transactions.html" class="btn">Start</a></div>
-                <div class="card"><i class="fas fa-user-check"></i><h3 class="text-xl font-semibold mb-2">User Profiles & Wallet</h3><p>Manage your Pi wallet and profile seamlessly.</p><a href="user-profiles-wallet.html" class="btn">Set Up</a></div>
-                <div class="card"><i class="fas fa-list"></i><h3 class="text-xl font-semibold mb-2">Multi-Category Listings</h3><p>Browse diverse listings from digital goods to services.</p><a href="multi-category-listings.html" class="btn">Browse</a></div>
-                <div class="card"><i class="fas fa-shield-alt"></i><h3 class="text-xl font-semibold mb-2">Escrow System</h3><p>Secure payments with our trusted escrow system.</p><a href="escrow-system.html" class="btn">Learn</a></div>
-                <div class="card"><i class="fas fa-clock"></i><h3 class="text-xl font-semibold mb-2">Instant Transactions</h3><p>Real-time transaction tracking and notifications.</p><a href="instant-transactions.html" class="btn">View</a></div>
-                <div class="card"><i class="fas fa-share-alt"></i><h3 class="text-xl font-semibold mb-2">Referral Program</h3><p>Earn Pi by inviting friends</p><a href="referral-program.html" class="btn">Join Now</a></div>
-                <div class="card"><i class="fas fa-brain"></i><h3 class="text-xl font-semibold mb-2">AI Price Predictor</h3><p>Market trend analysis</p><a href="ai-predictor.html" class="btn">Try Now</a></div>
+                <div class="card"><i class="fas fa-shopping-cart"></i><h3 class="text-xl font-semibold mb-2">Pi-Powered Marketplace</h3><p>Buy and sell with Pi.</p><a href="pi-powered-marketplace.html" class="btn">Explore</a></div>
+                <div class="card"><i class="fas fa-exchange-alt"></i><h3 class="text-xl font-semibold mb-2">Decentralized Transactions</h3><p>Secure P2P trading.</p><a href="decentralized-transactions.html" class="btn">Start</a></div>
+                <div class="card"><i class="fas fa-user-check"></i><h3 class="text-xl font-semibold mb-2">User Profiles & Wallet</h3><p>Manage your Pi wallet.</p><a href="user-profiles-wallet.html" class="btn">Set Up</a></div>
+                <div class="card"><i class="fas fa-list"></i><h3 class="text-xl font-semibold mb-2">Multi-Category Listings</h3><p>Browse diverse listings.</p><a href="multi-category-listings.html" class="btn">Browse</a></div>
+                <div class="card"><i class="fas fa-shield-alt"></i><h3 class="text-xl font-semibold mb-2">Escrow System</h3><p>Secure payments.</p><a href="escrow-system.html" class="btn">Learn</a></div>
+                <div class="card"><i class="fas fa-clock"></i><h3 class="text-xl font-semibold mb-2">Instant Transactions</h3><p>Real-time tracking.</p><a href="instant-transactions.html" class="btn">View</a></div>
+                <div class="card"><i class="fas fa-share-alt"></i><h3 class="text-xl font-semibold mb-2">Referral Program</h3><p>Earn Pi by inviting friends.</p><a href="referral-program.html" class="btn">Join Now</a></div>
+                <div class="card"><i class="fas fa-brain"></i><h3 class="text-xl font-semibold mb-2">AI Price Predictor</h3><p>Market trend analysis.</p><a href="ai-predictor.html" class="btn">Try Now</a></div>
             </div>
         </section>
 
-        <section id="new-features" class="py-16 px-4 bg-[var(--primary-color)] text-[var(--text-color)]">
-            <h2 class="section-title text-3xl font-bold text-center mb-8">New Features</h2>
+        <section id="community" class="py-16 px-4">
+            <h2 class="text-3xl font-bold text-center mb-8">Community & Social</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-                <div class="card bg-[var(--secondary-color)] text-[var(--primary-color)]"><i class="fas fa-globe"></i><h3 class="text-xl font-semibold mb-2">Global Marketplace Expansion</h3><p>Access international markets with localized currency support.</p><a href="global-expansion.html" class="btn">Explore</a></div>
-                <div class="card bg-[var(--secondary-color)] text-[var(--primary-color)]"><i class="fas fa-robot"></i><h3 class="text-xl font-semibold mb-2">AI-Powered Insights</h3><p>Get personalized trading and investment recommendations.</p><a href="ai-insights.html" class="btn">Try Now</a></div>
-                <div class="card bg-[var(--secondary-color)] text-[var(--primary-color)]"><i class="fas fa-mobile-alt"></i><h3 class="text-xl font-semibold mb-2">Mobile App Enhancements</h3><p>Enjoy a revamped UI, push notifications, and offline mode.</p><a href="mobile-enhancements.html" class="btn">Learn More</a></div>
-            </div>
-        </section>
-
-        <section id="ai-bot" class="py-16 px-4 bg-[var(--primary-color)] text-[var(--text-color)]">
-            <h2 class="section-title text-3xl font-bold text-center mb-8">TruthWeb AI Bot</h2>
-            <div class="max-w-4xl mx-auto text-center">
-                <p class="text-lg mb-6 md:text-xl">Our advanced AI Bot is here to assist you 24/7 with marketplace navigation, trading queries, and more—ensuring a seamless user experience.</p>
-                <a href="truwebbot.html" class="btn">Chat Now</a>
-            </div>
-        </section>
-
-        <section id="feed" class="py-16 px-4 bg-[var(--primary-color)] text-[var(--text-color)]">
-          <h2 class="section-title text-3xl font-bold text-center mb-8">TruthWeb Feed</h2>
-          <div class="feed-container">
-            <div class="feed-banner">
-              <p class="font-semibold mb-2">Demo: TruthWeb Updates</p>
-              <img data-src="https://placehold.co/600x150" alt="TruthWeb Demo Banner">
-              <p class="text-sm mt-2">Stay tuned for exciting updates on TruthWeb!</p>
-            </div>
-            <div class="card bg-[var(--secondary-color)] text-[var(--primary-color)]">
-              <div class="feed-item">
-                <div class="feed-header">
-                  <i class="fas fa-user-circle feed-avatar"></i>
-                  <div>
-                    <span class="feed-user">PioneerA</span>
-                    <span class="feed-time">Mar 5, 2025, 18:45</span>
-                  </div>
-                </div>
-                <p class="feed-content">Just sold 500 Pi in a P2P trade! Loving the seamless experience on TruthWeb.</p>
-                <div class="feed-actions">
-                  <button><i class="far fa-comment"></i> 2</button>
-                  <button><i class="fas fa-retweet"></i> 1</button>
-                  <button><i class="far fa-heart"></i> 3</button>
-                  <button><i class="fas fa-share-square"></i></button>
-                </div>
-              </div>
-              <div class="feed-item">
-                <div class="feed-header">
-                  <i class="fas fa-ad feed-avatar"></i>
-                  <div>
-                    <span class="feed-user">TruthWeb Ads</span>
-                    <span class="feed-time">Sponsored</span>
-                  </div>
-                </div>
-                <p class="feed-content">Get the new Pi Software for only 100 Pi! Boost your productivity today.</p>
-                <img data-src="https://placehold.co/600x200" alt="Pi Software Ad" class="mb-2 rounded">
-                <a href="marketplace.html" class="btn w-full">Shop Now</a>
-              </div>
-              <div class="feed-item">
-                <div class="feed-header">
-                  <i class="fas fa-user-circle feed-avatar"></i>
-                  <div>
-                    <span class="feed-user">VendorB</span>
-                    <span class="feed-time">Mar 5, 2025, 14:30</span>
-                  </div>
-                </div>
-                <p class="feed-content">New Pi eBook available in the marketplace! Check it out for only 50 Pi.</p>
-                <a href="marketplace.html" class="text-[var(--primary-color)] underline">View Product</a>
-                <div class="feed-actions mt-2">
-                  <button><i class="far fa-comment"></i> 3</button>
-                  <button><i class="fas fa-retweet"></i> 2</button>
-                  <button><i class="far fa-heart"></i> 5</button>
-                  <button><i class="fas fa-share-square"></i></button>
-                </div>
-              </div>
-            </div>
-            <div class="text-center mt-6">
-              <a href="truthwebfeed.html" class="btn">See Full Feed</a>
-            </div>
-          </div>
-        </section>
-
-        <section id="community" class="py-16 px-4 bg-[var(--primary-color)] text-[var(--text-color)]">
-            <h2 class="section-title text-3xl font-bold text-center mb-8">Community & Social</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-                <div class="card bg-[var(--secondary-color)] text-[var(--primary-color)]"><i class="fas fa-check-circle"></i><h3 class="text-xl font-semibold mb-2">Pioneer Verification</h3><p>Ensure trusted transactions with verified users.</p><a href="pioneerverification.html" class="btn">Verify</a></div>
-                <div class="card bg-[var(--secondary-color)] text-[var(--primary-color)]"><i class="fas fa-star"></i><h3 class="text-xl font-semibold mb-2">Reviews & Ratings</h3><p>Build trust with user reviews and ratings.</p><a href="reviewsratings.html" class="btn">Review</a></div>
-                <div class="card bg-[var(--secondary-color)] text-[var(--primary-color)]"><i class="fas fa-comments"></i><h3 class="text-xl font-semibold mb-2">Messaging & Chat</h3><p>Direct, secure communication with other Pioneers.</p><a href="messagingchat.html" class="btn">Chat</a></div>
+                <div class="card"><i class="fas fa-check-circle"></i><h3 class="text-xl font-semibold mb-2">Pioneer Verification</h3><p>Trusted transactions.</p><a href="pioneerverification.html" class="btn">Verify</a></div>
+                <div class="card"><i class="fas fa-star"></i><h3 class="text-xl font-semibold mb-2">Reviews & Ratings</h3><p>Build trust.</p><a href="reviewsratings.html" class="btn">Review</a></div>
+                <div class="card"><i class="fas fa-comments"></i><h3 class="text-xl font-semibold mb-2">Messaging & Chat</h3><p>Secure communication.</p><a href="messagingchat.html" class="btn">Chat</a></div>
             </div>
         </section>
 
         <section id="developers" class="py-16 px-4">
-            <h2 class="section-title text-3xl font-bold text-center mb-8">Developer & Business</h2>
+            <h2 class="text-3xl font-bold text-center mb-8">Developer & Business</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-                <div class="card">
-                    <i class="fas fa-code"></i>
-                    <h3 class="text-xl font-semibold mb-2">Open-Source API</h3>
-                    <p>Build powerful Pi integrations with our API.</p>
-                    <a href="api-docs.html" class="btn">Docs</a>
-                </div>
-                <div class="card">
-                    <i class="fas fa-chart-line"></i>
-                    <h3 class="text-xl font-semibold mb-2">Vendor Dashboard</h3>
-                    <p>Access advanced seller analytics and insights.</p>
-                    <a href="dashboardmonitoring.html" class="btn">View</a>
-                </div>
-                <div class="card">
-                    <i class="fas fa-box-open"></i>
-                    <h3 class="text-xl font-semibold mb-2">Automated Orders</h3>
-                    <p>Enable instant delivery for digital goods.</p>
-                    <a href="automated.html" class="btn">List</a>
-                </div>
-                <div class="card">
-                    <i class="fas fa-ad"></i>
-                    <h3 class="text-xl font-semibold mb-2">Ad & Promotion</h3>
-                    <p>Boost your listing visibility with targeted ads.</p>
-                    <a href="promote.html" class="btn">Promote</a>
-                </div>
-                <div class="card">
-                    <i class="fas fa-money-bill-wave"></i>
-                    <h3 class="text-xl font-semibold mb-2">Multi-Currency</h3>
-                    <p>Convert Pi to fiat for transparent pricing.</p>
-                    <a href="multicurrency.html" class="btn">Convert</a>
-                </div>
-                <div class="card">
-                    <i class="fas fa-code-branch"></i>
-                    <h3 class="text-xl font-semibold mb-2">API Playground</h3>
-                    <p>Test API endpoints in real-time</p>
-                    <a href="api-playground.html" class="btn">Explore</a>
-                </div>
+                <div class="card"><i class="fas fa-code"></i><h3 class="text-xl font-semibold mb-2">Open-Source API</h3><p>Build Pi integrations.</p><a href="api-docs.html" class="btn">Docs</a></div>
+                <div class="card"><i class="fas fa-chart-line"></i><h3 class="text-xl font-semibold mb-2">Vendor Dashboard</h3><p>Seller analytics.</p><a href="dashboardmonitoring.html" class="btn">View</a></div>
+                <div class="card"><i class="fas fa-box-open"></i><h3 class="text-xl font-semibold mb-2">Automated Orders</h3><p>Instant delivery.</p><a href="automated.html" class="btn">List</a></div>
+                <div class="card"><i class="fas fa-ad"></i><h3 class="text-xl font-semibold mb-2">Ad & Promotion</h3><p>Boost visibility.</p><a href="promote.html" class="btn">Promote</a></div>
+                <div class="card"><i class="fas fa-money-bill-wave"></i><h3 class="text-xl font-semibold mb-2">Multi-Currency</h3><p>Convert Pi to fiat.</p><a href="multicurrency.html" class="btn">Convert</a></div>
+                <div class="card"><i class="fas fa-code-branch"></i><h3 class="text-xl font-semibold mb-2">API Playground</h3><p>Test API endpoints.</p><a href="api-playground.html" class="btn">Explore</a></div>
             </div>
         </section>
 
         <section id="testimonials" class="py-16 px-4">
-            <h2 class="section-title text-3xl font-bold text-center mb-8">What Our Users Say</h2>
+            <h2 class="text-3xl font-bold text-center mb-8">What Our Users Say</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
                 <div class="card"><p class="mb-4">"Sold my digital art easily!"</p><p>- Artist123</p></div>
                 <div class="card"><p class="mb-4">"Supportive community!"</p><p>- Learner456</p></div>
@@ -819,59 +733,44 @@
             </div>
         </section>
 
-        <section id="security" class="py-16 px-4 bg-[var(--primary-color)] text-[var(--text-color)]">
-            <h2 class="section-title text-3xl font-bold text-center mb-8">Security & Trust</h2>
+        <section id="security" class="py-16 px-4">
+            <h2 class="text-3xl font-bold text-center mb-8">Security & Trust</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-                <div class="card bg-[var(--secondary-color)] text-[var(--primary-color)]"><i class="fas fa-id-badge"></i><h3 class="text-xl font-semibold mb-2">KYC Verification</h3><p>Secure your account with KYC verification.</p><a href="kycverification.html" class="btn">Verify</a></div>
-                <div class="card bg-[var(--secondary-color)] text-[var(--primary-color)]"><i class="fas fa-lock"></i><h3 class="text-xl font-semibold mb-2">End-to-End Encryption</h3><p>Protect your data with advanced encryption.</p><a href="endtoendencryption.html" class="btn">Learn</a></div>
-                <div class="card bg-[var(--secondary-color)] text-[var(--primary-color)]"><i class="fas fa-mobile-alt"></i><h3 class="text-xl font-semibold mb-2">Two-Factor Authentication</h3><p>Add an extra layer of security with 2FA.</p><a href="twofactor.html" class="btn">Enable</a></div>
+                <div class="card"><i class="fas fa-id-badge"></i><h3 class="text-xl font-semibold mb-2">KYC Verification</h3><p>Secure your account.</p><a href="kycverification.html" class="btn">Verify</a></div>
+                <div class="card"><i class="fas fa-lock"></i><h3 class="text-xl font-semibold mb-2">End-to-End Encryption</h3><p>Protect your data.</p><a href="endtoendencryption.html" class="btn">Learn</a></div>
+                <div class="card"><i class="fas fa-mobile-alt"></i><h3 class="text-xl font-semibold mb-2">Two-Factor Authentication</h3><p>Add extra security.</p><a href="twofactor.html" class="btn">Enable</a></div>
             </div>
         </section>
-    
+
         <section id="fraud-detection" class="py-16 px-4">
-            <h2 class="section-title text-3xl font-bold text-center mb-8">Fraud Detection</h2>
+            <h2 class="text-3xl font-bold text-center mb-8">Fraud Detection</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-                <div class="card">
-                    <i class="fas fa-robot"></i>
-                    <h3 class="text-xl font-semibold mb-2">AI-Powered Monitoring</h3>
-                    <p>Real-time fraud detection with AI.</p>
-                    <a href="fraud-detection.html" class="btn">Learn More</a>
-                </div>
-                <div class="card">
-                    <i class="fas fa-shield-alt"></i>
-                    <h3 class="text-xl font-semibold mb-2">Transaction Safety</h3>
-                    <p>Protecting your Pi trades.</p>
-                    <a href="trustedtransactions.html" class="btn">Details</a>
-                </div>
-                <div class="card">
-                    <i class="fas fa-chart-line"></i>
-                    <h3 class="text-xl font-semibold mb-2">Anomaly Detection</h3>
-                    <p>Spot suspicious activity instantly.</p>
-                    <a href="fraud-detection.html#anomaly" class="btn">Explore</a>
-                </div>
+                <div class="card"><i class="fas fa-robot"></i><h3 class="text-xl font-semibold mb-2">AI-Powered Monitoring</h3><p>Real-time fraud detection.</p><a href="fraud-detection.html" class="btn">Learn More</a></div>
+                <div class="card"><i class="fas fa-shield-alt"></i><h3 class="text-xl font-semibold mb-2">Transaction Safety</h3><p>Protecting your trades.</p><a href="trustedtransactions.html" class="btn">Details</a></div>
+                <div class="card"><i class="fas fa-chart-line"></i><h3 class="text-xl font-semibold mb-2">Anomaly Detection</h3><p>Spot suspicious activity.</p><a href="fraud-detection.html#anomaly" class="btn">Explore</a></div>
             </div>
         </section>
-        
+
         <section id="news" class="py-16 px-4">
-            <h2 class="section-title text-3xl font-bold text-center mb-8">TruthWeb News</h2>
+            <h2 class="text-3xl font-bold text-center mb-8">TruthWeb News</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
                 <div class="card"><i class="fas fa-newspaper"></i><h3 class="text-xl font-semibold mb-2">v1.0 Launched!</h3><p>Pi-powered platform live.</p><a href="news.html#launch" class="btn">Read</a></div>
                 <div class="card"><i class="fas fa-coins"></i><h3 class="text-xl font-semibold mb-2">Pi Milestone</h3><p>50M Pioneers reached.</p><a href="https://minepi.com/news" target="_blank" class="btn">Read</a></div>
                 <div class="card"><i class="fas fa-users"></i><h3 class="text-xl font-semibold mb-2">Community Update</h3><p>New forum features.</p><a href="community.html#update" class="btn">Read</a></div>
             </div>
         </section>
- 
-        <section id="pitrack" class="py-16 px-4 bg-[var(--primary-color)] text-[var(--text-color)]">
-            <h2 class="section-title text-3xl font-bold text-center mb-8">PiTrack</h2>
+
+        <section id="pitrack" class="py-16 px-4">
+            <h2 class="text-3xl font-bold text-center mb-8">PiTrack</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-                <div class="card bg-[var(--secondary-color)] text-[var(--primary-color)]"><i class="fas fa-chart-bar"></i><h3 class="text-xl font-semibold mb-2">Track Your Pi</h3><p>Monitor wallet activity.</p><a href="pitrack.html#wallet" class="btn">View</a></div>
-                <div class="card bg-[var(--secondary-color)] text-[var(--primary-color)]"><i class="fas fa-history"></i><h3 class="text-xl font-semibold mb-2">Transaction Insights</h3><p>Real-time updates.</p><a href="pitrack.html#history" class="btn">Check</a></div>
-                <div class="card bg-[var(--secondary-color)] text-[var(--primary-color)]"><i class="fas fa-tachometer-alt"></i><h3 class="text-xl font-semibold mb-2">Ecosystem Metrics</h3><p>Pi usage trends.</p><a href="pitrack.html#metrics" class="btn">Stats</a></div>
+                <div class="card"><i class="fas fa-chart-bar"></i><h3 class="text-xl font-semibold mb-2">Track Your Pi</h3><p>Monitor wallet activity.</p><a href="pitrack.html#wallet" class="btn">View</a></div>
+                <div class="card"><i class="fas fa-history"></i><h3 class="text-xl font-semibold mb-2">Transaction Insights</h3><p>Real-time updates.</p><a href="pitrack.html#history" class="btn">Check</a></div>
+                <div class="card"><i class="fas fa-tachometer-alt"></i><h3 class="text-xl font-semibold mb-2">Ecosystem Metrics</h3><p>Pi usage trends.</p><a href="pitrack.html#metrics" class="btn">Stats</a></div>
             </div>
         </section>
 
         <section id="pitrade" class="py-16 px-4">
-            <h2 class="section-title text-3xl font-bold text-center mb-8">Pi Trade</h2>
+            <h2 class="text-3xl font-bold text-center mb-8">Pi Trade</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
                 <div class="card"><i class="fas fa-handshake"></i><h3 class="text-xl font-semibold mb-2">P2P Trading</h3><p>Trade Pi directly.</p><a href="pitrade.html#p2p" class="btn">Trade</a></div>
                 <div class="card"><i class="fas fa-chart-line"></i><h3 class="text-xl font-semibold mb-2">Market Trends</h3><p>View Pi value trends.</p><a href="pitrade.html#trends" class="btn">Trends</a></div>
@@ -880,39 +779,24 @@
         </section>
 
         <section id="referral-program" class="py-16 px-4">
-            <h2 class="section-title text-3xl font-bold text-center mb-8">Referral Program</h2>
+            <h2 class="text-3xl font-bold text-center mb-8">Referral Program</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-                <div class="card">
-                    <i class="fas fa-user-friends"></i>
-                    <h3 class="text-xl font-semibold mb-2">Invite Friends</h3>
-                    <p>Earn Pi by referring friends.</p>
-                    <a href="referral-program.html" class="btn">Join Now</a>
-                </div>
-                <div class="card">
-                    <i class="fas fa-gift"></i>
-                    <h3 class="text-xl font-semibold mb-2">Earn Rewards</h3>
-                    <p>Get bonuses for each referral.</p>
-                    <a href="referral-program.html#rewards" class="btn">See Rewards</a>
-                </div>
-                <div class="card">
-                    <i class="fas fa-share-alt"></i>
-                    <h3 class="text-xl font-semibold mb-2">Share Easily</h3>
-                    <p>Use your unique link to invite.</p>
-                    <a href="referral-program.html#share" class="btn">Get Link</a>
-                </div>
+                <div class="card"><i class="fas fa-user-friends"></i><h3 class="text-xl font-semibold mb-2">Invite Friends</h3><p>Earn Pi by referring.</p><a href="referral-program.html" class="btn">Join Now</a></div>
+                <div class="card"><i class="fas fa-gift"></i><h3 class="text-xl font-semibold mb-2">Earn Rewards</h3><p>Bonuses for referrals.</p><a href="referral-program.html#rewards" class="btn">See Rewards</a></div>
+                <div class="card"><i class="fas fa-share-alt"></i><h3 class="text-xl font-semibold mb-2">Share Easily</h3><p>Use your unique link.</p><a href="referral-program.html#share" class="btn">Get Link</a></div>
             </div>
         </section>
 
-        <section id="content" class="py-16 px-4 bg-[var(--primary-color)] text-[var(--text-color)]">
-            <h2 class="section-title text-3xl font-bold text-center mb-8">Content</h2>
+        <section id="content" class="py-16 px-4">
+            <h2 class="text-3xl font-bold text-center mb-8">Content</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-6xl mx-auto">
-                <div class="card bg-[var(--secondary-color)] text-[var(--primary-color)]"><i class="fas fa-video"></i><h3 class="text-xl font-semibold mb-2">Video Series</h3><p>Latest Pi insights.</p><a href="truthweb-hub.html" class="btn">Watch</a></div>
-                <div class="card bg-[var(--secondary-color)] text-[var(--primary-color)]"><i class="fas fa-newspaper"></i><h3 class="text-xl font-semibold mb-2">Latest News</h3><p>Fresh Pi updates.</p><a href="truthweb-news.html" class="btn">Read</a></div>
+                <div class="card"><i class="fas fa-video"></i><h3 class="text-xl font-semibold mb-2">Video Series</h3><p>Latest Pi insights.</p><a href="truthweb-hub.html" class="btn">Watch</a></div>
+                <div class="card"><i class="fas fa-newspaper"></i><h3 class="text-xl font-semibold mb-2">Latest News</h3><p>Fresh Pi updates.</p><a href="truthweb-news.html" class="btn">Read</a></div>
             </div>
         </section>
 
         <section id="coming-soon" class="py-16 px-4">
-            <h2 class="section-title text-3xl font-bold text-center mb-8">Coming Soon</h2>
+            <h2 class="text-3xl font-bold text-center mb-8">Coming Soon</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
                 <div class="card"><i class="fas fa-image"></i><h3 class="text-xl font-semibold mb-2">NFT Marketplace</h3><p>Trade NFTs with Pi.</p><a href="future.html#nfts" class="btn">Update</a></div>
                 <div class="card"><i class="fas fa-robot"></i><h3 class="text-xl font-semibold mb-2">AI Recommendations</h3><p>Personalized suggestions.</p><a href="future.html#ai" class="btn">Update</a></div>
@@ -920,177 +804,422 @@
                 <div class="card"><i class="fas fa-coins"></i><h3 class="text-xl font-semibold mb-2">Pi Staking</h3><p>Earn rewards.</p><a href="future.html#staking" class="btn">Update</a></div>
             </div>
         </section>
-    </main>   
+    </main>
 
-    <div class="footer-menu">
-        <a href="index.html"><i class="fas fa-home"></i></a>
-        <a href="marketplace.html"><i class="fas fa-shopping-cart"></i></a>
-        <a href="profile.html"><i class="fas fa-user"></i></a>
-        <a href="wallet.html"><i class="fas fa-wallet"></i></a>
+    <div class="back-to-top" aria-label="Back to Top">
+        <i class="fas fa-arrow-up"></i>
     </div>
 
-    <footer class="bg-[var(--primary-color)] py-8">
-      <div class="container mx-auto text-center">
-        <div class="mb-4">
-          <a href="donate.html" class="btn accent inline-flex items-center"><i class="fas fa-gift mr-2"></i> Donate</a>
+    <div class="footer-menu" role="navigation" aria-label="Mobile Footer Navigation">
+        <a href="index.html" aria-label="Home"><i class="fas fa-home"></i></a>
+        <a href="marketplace.html" aria-label="Marketplace"><i class="fas fa-shopping-cart"></i></a>
+        <a href="profile.html" aria-label="Profile"><i class="fas fa-user"></i></a>
+        <a href="wallet.html" aria-label="Wallet"><i class="fas fa-wallet"></i></a>
+    </div>
+
+    <footer class="bg-[var(--secondary-color)] py-8">
+        <div class="container mx-auto text-center">
+            <div class="donation-btn">
+                <a href="donate.html" class="btn donation inline-flex items-center">
+                    <i class="fas fa-gift mr-2"></i> Donate
+                </a>
+            </div>
+            <div class="social-icons mb-4 mt-4">
+                <a href="https://facebook.com" target="_blank" class="floating-effect" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+                <a href="https://twitter.com" target="_blank" class="floating-effect" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+                <a href="https://telegram.org" target="_blank" class="floating-effect" aria-label="Telegram"><i class="fab fa-telegram"></i></a>
+                <a href="https://youtube.com" target="_blank" class="floating-effect" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
+                <a href="https://github.com" target="_blank" class="floating-effect" aria-label="GitHub"><i class="fab fa-github"></i></a>
+            </div>
+            <p class="text-[var(--text-color)] mb-4">© 2025 TruthWeb. All rights reserved.</p>
+            <div class="footer-links text-sm">
+                <a href="about.html" class="mx-2 hover:text-[var(--accent-color)]">About Us</a> |
+                <a href="terms.html" class="mx-2 hover:text-[var(--accent-color)]">Terms & Conditions</a> |
+                <a href="privacy.html" class="mx-2 hover:text-[var(--accent-color)]">Privacy Policy</a> |
+                <a href="contact.html" class="mx-2 hover:text-[var(--accent-color)]">Contact</a>
+            </div>
         </div>
-        <div class="mb-4">
-          <a class="text-[var(--text-color)] mx-2 floating-effect" href="/" target="_blank"><i class="fab fa-facebook-f"></i></a>
-          <a class="text-[var(--text-color)] mx-2 floating-effect" href="/" target="_blank"><i class="fab fa-twitter"></i></a>
-          <a class="text-[var(--text-color)] mx-2 floating-effect" href="/" target="_blank"><i class="fab fa-telegram"></i></a>
-          <a class="text-[var(--text-color)] mx-2 floating-effect" href="/" target="_blank"><i class="fab fa-youtube"></i></a>
-          <a class="text-[var(--text-color)] mx-2 floating-effect" href="/" target="_blank"><i class="fab fa-github"></i></a>
-        </div>
-        <p class="text-[var(--text-color)] mb-4">© 2025 TruthWeb. All rights reserved.</p>
-        <div class="text-[var(--text-color)] text-sm">
-          <a href="about.html" class="mx-2 hover:text-[var(--highlight-color)]">About Us</a> |
-          <a href="terms.html" class="mx-2 hover:text-[var(--highlight-color)]">Terms & Conditions</a> |
-          <a href="privacy.html" class="mx-2 hover:text-[var(--highlight-color)]">Privacy Policy</a> |
-          <a href="contact.html" class="mx-2 hover:text-[var(--highlight-color)]">Contact</a>
-        </div>
-      </div>
     </footer>
 
     <script>
-      function adjustLayout() {
-        const width = window.innerWidth;
-        const isMobile = width <= 640;
-        const isTablet = width > 640 && width <= 1024;
-        const isDesktop = width > 1024;
-        const burgerBtn = document.querySelector('.burger-btn');
-        const desktopNav = document.querySelector('.desktop-nav');
-        const searchContainer = document.querySelector('.search-container');
-        const cards = document.querySelectorAll('.card');
-
-        if (isMobile) {
-          burgerBtn.style.display = 'flex';
-          desktopNav.style.display = 'none';
-          searchContainer.style.maxWidth = '120px';
-          cards.forEach(card => card.style.marginBottom = '1rem');
-        } else if (isTablet) {
-          burgerBtn.style.display = 'none';
-          desktopNav.style.display = 'flex';
-          searchContainer.style.maxWidth = '300px';
-        } else if (isDesktop) {
-          burgerBtn.style.display = 'none';
-          desktopNav.style.display = 'flex';
-          searchContainer.style.maxWidth = '400px';
-        }
-      }
-
-      window.addEventListener('load', adjustLayout);
-      window.addEventListener('resize', adjustLayout);
-
-      let lastScroll = 0;
-      window.addEventListener('scroll', () => {
-        const header = document.querySelector('.sticky-header');
-        const footerMenu = document.querySelector('.footer-menu');
-        const currentScroll = window.scrollY;
-
-        if (currentScroll > lastScroll && currentScroll > 64) {
-          header.classList.add('hidden');
-          footerMenu.classList.add('hidden');
-        } else if (currentScroll < lastScroll || currentScroll <= 64) {
-          header.classList.remove('hidden');
-          footerMenu.classList.remove('hidden');
-        }
-
-        header.classList.toggle('scrolled', currentScroll > 64 && !header.classList.contains('hidden'));
-
-        lastScroll = currentScroll;
-      });
-
-      const burgerBtn = document.querySelector('.burger-btn');
-      const mobileMenu = document.querySelector('.mobile-menu');
-      burgerBtn.addEventListener('click', () => {
-        burgerBtn.classList.toggle('open');
-        mobileMenu.classList.toggle('open');
-      });
-
-      document.querySelectorAll('.mobile-menu a').forEach(link => {
-        link.addEventListener('click', () => {
-          burgerBtn.classList.remove('open');
-          mobileMenu.classList.remove('open');
-        });
-      });
-
-      const searchInput = document.querySelector('.search-input');
-      const searchResults = document.querySelector('.search-results');
-      const searchableContent = [];
-      document.querySelectorAll('h1, h2, h3, p, a').forEach(element => {
-        const text = element.textContent.trim();
-        if (text) {
-          searchableContent.push({
-            text: text.toLowerCase(),
-            element,
-            href: element.tagName === 'A' ? element.getAttribute('href') : null
+      // Theme Toggle Module
+      const ThemeToggle = (() => {
+        const themeToggle = document.querySelector('.theme-toggle');
+        const init = () => {
+          const savedTheme = localStorage.getItem('theme') || 'light';
+          document.documentElement.dataset.theme = savedTheme;
+          themeToggle.innerHTML = savedTheme === 'dark' ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+          themeToggle.addEventListener('click', () => {
+            const newTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+            document.documentElement.dataset.theme = newTheme;
+            themeToggle.innerHTML = newTheme === 'dark' ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+            localStorage.setItem('theme', newTheme);
+            NightBackground.updateTheme();
+            CoinAnimation.updateTheme();
           });
-        }
-      });
+          NightBackground.updateTheme();
+          CoinAnimation.updateTheme();
+        };
+        return { init };
+      })();
 
-      searchInput.addEventListener('input', (e) => {
-        const query = e.target.value.toLowerCase().trim();
-        searchResults.innerHTML = '';
-        searchResults.classList.remove('active');
+      // Custom Cursor Module
+      const CustomCursor = (() => {
+        const cursor = document.querySelector('.custom-cursor');
+        const init = () => {
+          document.addEventListener('mousemove', (e) => {
+            cursor.style.left = `${e.clientX}px`;
+            cursor.style.top = `${e.clientY}px`;
+          });
+          document.querySelectorAll('a, button').forEach(el => {
+            el.addEventListener('mouseenter', () => cursor.classList.add('hover'));
+            el.addEventListener('mouseleave', () => cursor.classList.remove('hover'));
+          });
+        };
+        return { init };
+      })();
 
-        if (query.length > 0) {
-          const results = searchableContent.filter(item => item.text.includes(query));
-          if (results.length > 0) {
-            results.forEach(result => {
-              const div = document.createElement('div');
-              div.classList.add('search-result-item');
-              div.textContent = result.text.slice(0, 50) + (result.text.length > 50 ? '...' : '');
-              div.addEventListener('click', () => {
-                if (result.href) window.location.href = result.href;
-                else result.element.scrollIntoView({ behavior: 'smooth' });
-                searchResults.classList.remove('active');
-                searchInput.value = '';
-              });
-              searchResults.appendChild(div);
+      // Progress Bar Module
+      const ProgressBar = (() => {
+        const progressBar = document.querySelector('.progress-bar');
+        const init = () => {
+          window.addEventListener('scroll', () => {
+            const scrollTop = window.scrollY;
+            const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+            const scrollPercent = (scrollTop / docHeight) * 100;
+            progressBar.style.width = `${scrollPercent}%`;
+          });
+        };
+        return { init };
+      })();
+
+      // GSAP Animations Module
+      const Animations = (() => {
+        const init = () => {
+          gsap.from('.glow-text', { opacity: 0, y: 50, duration: 1.5, ease: 'power3.out' });
+          gsap.from('.download-btn', { opacity: 0, scale: 0.8, duration: 1, ease: 'elastic.out(1, 0.5)', delay: 1, stagger: 0.2 });
+          gsap.utils.toArray('section').forEach(section => {
+            gsap.from(section.children, {
+              opacity: 0,
+              y: 50,
+              duration: 1,
+              stagger: 0.2,
+              scrollTrigger: { trigger: section, start: 'top 80%' }
             });
-            searchResults.classList.add('active');
-          } else {
-            const noResult = document.createElement('div');
-            noResult.classList.add('search-result-item');
-            noResult.textContent = 'No results found';
-            searchResults.appendChild(noResult);
-            searchResults.classList.add('active');
+          });
+          gsap.from('.footer-menu', { opacity: 0, y: 50, duration: 1, ease: 'power3.out', delay: 0.5 });
+          gsap.from('footer', { opacity: 0, y: 50, duration: 1, ease: 'power3.out', scrollTrigger: { trigger: 'footer', start: 'top 80%' } });
+        };
+        return { init };
+      })();
+
+      // Night Background Module (Full-page stars in dark mode)
+      const NightBackground = (() => {
+        let scene, camera, renderer, particles;
+        const init = () => {
+          scene = new THREE.Scene();
+          camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+          renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('night-canvas'), alpha: true });
+          renderer.setSize(window.innerWidth, window.innerHeight);
+
+          const particleGeometry = new THREE.BufferGeometry();
+          const particleCount = 500;
+          const positions = new Float32Array(particleCount * 3);
+          for (let i = 0; i < particleCount * 3; i += 3) {
+            positions[i] = (Math.random() - 0.5) * 100;
+            positions[i + 1] = (Math.random() - 0.5) * 100;
+            positions[i + 2] = (Math.random() - 0.5) * 100;
           }
-        }
-      });
+          particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+          const particleMaterial = new THREE.PointsMaterial({
+            color: 0xFFFFFF,
+            size: 0.1,
+            transparent: true,
+            opacity: 0.8
+          });
+          particles = new THREE.Points(particleGeometry, particleMaterial);
+          scene.add(particles);
 
-      document.addEventListener('click', (e) => {
-        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
-          searchResults.classList.remove('active');
-        }
-      });
+          camera.position.z = 10;
 
-      document.addEventListener('DOMContentLoaded', () => {
-        const lazyImages = document.querySelectorAll('img[data-src]');
-        const imageObserver = new IntersectionObserver((entries) => {
-          entries.forEach(entry => {
-            if (entry.isIntersecting) {
-              const img = entry.target;
-              img.src = img.dataset.src;
-              imageObserver.unobserve(img);
+          const animate = () => {
+            requestAnimationFrame(animate);
+            const positions = particleGeometry.attributes.position.array;
+            for (let i = 0; i < particleCount * 3; i += 3) {
+              positions[i + 2] += Math.sin(Date.now() * 0.001 + i) * 0.005;
+              if (positions[i + 2] > 50) positions[i + 2] = -50;
+            }
+            particleGeometry.attributes.position.needsUpdate = true;
+            renderer.render(scene, camera);
+          };
+          animate();
+
+          window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+          });
+        };
+
+        const updateTheme = () => {
+          const isDark = document.documentElement.dataset.theme === 'dark';
+          if (isDark && !particles) init();
+          if (particles) {
+            particles.visible = isDark;
+          }
+        };
+
+        return { init, updateTheme };
+      })();
+
+      // 3D Coin Animation Module (Hero section only)
+      const CoinAnimation = (() => {
+        let scene, camera, renderer, coin;
+        const init = () => {
+          scene = new THREE.Scene();
+          camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+          renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('coin-canvas'), alpha: true });
+          renderer.setSize(window.innerWidth, window.innerHeight);
+
+          const geometry = new THREE.CylinderGeometry(2, 2, 0.2, 32);
+          const textureLoader = new THREE.TextureLoader();
+          const logoTexture = textureLoader.load('https://i.ibb.co/5XgPgq1Z/Pi-200x200-removebg-preview.png');
+          const topBottomMaterial = new THREE.MeshPhongMaterial({
+            map: logoTexture,
+            shininess: 150,
+            specular: 0x555555,
+            transparent: true,
+            reflectivity: 0.8
+          });
+          const sideMaterial = new THREE.MeshPhongMaterial({
+            color: 0xFFD700,
+            shininess: 150,
+            specular: 0x555555,
+            reflectivity: 0.8
+          });
+          const materials = [sideMaterial, topBottomMaterial, topBottomMaterial];
+          coin = new THREE.Mesh(geometry, materials);
+          scene.add(coin);
+
+          const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+          scene.add(ambientLight);
+          const pointLight = new THREE.PointLight(0xFFFFFF, 1.5, 100);
+          pointLight.position.set(5, 5, 5);
+          scene.add(pointLight);
+          const spotLight = new THREE.SpotLight(0xFFD700, 1, 100, Math.PI / 6);
+          spotLight.position.set(-5, 5, 5);
+          spotLight.castShadow = true;
+          scene.add(spotLight);
+
+          camera.position.z = 5;
+
+          let scale = 1;
+          const animate = () => {
+            requestAnimationFrame(animate);
+            coin.rotation.x += 0.01;
+            coin.rotation.y += 0.01;
+            scale = Math.sin(Date.now() * 0.002) * 0.05 + 1;
+            coin.scale.set(scale, scale, scale);
+            renderer.render(scene, camera);
+          };
+          animate();
+
+          document.addEventListener('mousemove', (e) => {
+            const mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+            const mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+            coin.rotation.y = mouseX * Math.PI * 0.5;
+            coin.rotation.x = mouseY * Math.PI * 0.5;
+          });
+
+          window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+          });
+        };
+
+        const updateTheme = () => {};
+
+        return { init, updateTheme };
+      })();
+
+      // Layout Adjustments Module
+      const LayoutAdjustments = (() => {
+        const adjustLayout = () => {
+          const width = window.innerWidth;
+          const isMobile = width <= 640;
+          const isTablet = width > 640 && width <= 1024;
+          const isDesktop = width > 1024;
+          const burgerBtn = document.querySelector('.burger-btn');
+          const desktopNav = document.querySelector('.desktop-nav');
+          const searchContainer = document.querySelector('.search-container');
+          const cards = document.querySelectorAll('.card');
+
+          if (isMobile) {
+            burgerBtn.style.display = 'flex';
+            desktopNav.style.display = 'none';
+            searchContainer.style.maxWidth = '120px';
+            cards.forEach(card => card.style.marginBottom = '1rem');
+          } else if (isTablet) {
+            burgerBtn.style.display = 'none';
+            desktopNav.style.display = 'flex';
+            searchContainer.style.maxWidth = '300px';
+          } else if (isDesktop) {
+            burgerBtn.style.display = 'none';
+            desktopNav.style.display = 'flex';
+            searchContainer.style.maxWidth = '400px';
+          }
+        };
+        const init = () => {
+          window.addEventListener('load', adjustLayout);
+          window.addEventListener('resize', adjustLayout);
+        };
+        return { init };
+      })();
+
+      // Scroll Handling Module
+      const ScrollHandling = (() => {
+        let lastScroll = 0;
+        const init = () => {
+          window.addEventListener('scroll', () => {
+            const header = document.querySelector('.sticky-header');
+            const footerMenu = document.querySelector('.footer-menu');
+            const backToTop = document.querySelector('.back-to-top');
+            const currentScroll = window.scrollY;
+
+            if (currentScroll > lastScroll && currentScroll > 64) {
+              header.classList.add('hidden');
+              footerMenu.classList.add('hidden');
+            } else if (currentScroll < lastScroll || currentScroll <= 64) {
+              header.classList.remove('hidden');
+              footerMenu.classList.remove('hidden');
+            }
+
+            header.classList.toggle('scrolled', currentScroll > 64 && !header.classList.contains('hidden'));
+            backToTop.classList.toggle('visible', currentScroll > 300);
+
+            lastScroll = currentScroll;
+          });
+
+          document.querySelector('.back-to-top').addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          });
+        };
+        return { init };
+      })();
+
+      // Burger Menu Module
+      const BurgerMenu = (() => {
+        const burgerBtn = document.querySelector('.burger-btn');
+        const mobileMenu = document.querySelector('.mobile-menu');
+        const init = () => {
+          burgerBtn.addEventListener('click', () => {
+            burgerBtn.classList.toggle('open');
+            mobileMenu.classList.toggle('open');
+          });
+          document.querySelectorAll('.mobile-menu a').forEach(link => {
+            link.addEventListener('click', () => {
+              burgerBtn.classList.remove('open');
+              mobileMenu.classList.remove('open');
+            });
+          });
+        };
+        return { init };
+      })();
+
+      // Search Functionality Module
+      const Search = (() => {
+        const searchInput = document.querySelector('.search-input');
+        const searchResults = document.querySelector('.search-results');
+        const searchableContent = [];
+        document.querySelectorAll('h1, h2, h3, p, a').forEach(element => {
+          const text = element.textContent.trim();
+          if (text) {
+            searchableContent.push({
+              text: text.toLowerCase(),
+              element,
+              href: element.tagName === 'A' ? element.getAttribute('href') : null
+            });
+          }
+        });
+
+        const init = () => {
+          searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            searchResults.innerHTML = '<div class="search-result-item">Searching...</div>';
+            searchResults.classList.add('active');
+
+            setTimeout(() => {
+              searchResults.innerHTML = '';
+              if (query.length > 0) {
+                const results = searchableContent.filter(item => item.text.includes(query));
+                if (results.length > 0) {
+                  results.forEach(result => {
+                    const div = document.createElement('div');
+                    div.classList.add('search-result-item');
+                    div.textContent = result.text.slice(0, 50) + (result.text.length > 50 ? '...' : '');
+                    div.addEventListener('click', () => {
+                      if (result.href) window.location.href = result.href;
+                      else result.element.scrollIntoView({ behavior: 'smooth' });
+                      searchResults.classList.remove('active');
+                      searchInput.value = '';
+                    });
+                    searchResults.appendChild(div);
+                  });
+                } else {
+                  const noResult = document.createElement('div');
+                  noResult.classList.add('search-result-item');
+                  noResult.textContent = 'No results found';
+                  searchResults.appendChild(noResult);
+                }
+              } else {
+                searchResults.classList.remove('active');
+              }
+            }, 300);
+          });
+
+          document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+              searchResults.classList.remove('active');
             }
           });
-        });
+        };
+        return { init };
+      })();
 
-        lazyImages.forEach(img => imageObserver.observe(img));
+      // Lazy Loading Module
+      const LazyLoading = (() => {
+        const init = () => {
+          const lazyImages = document.querySelectorAll('img[data-src]');
+          const imageObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+              if (entry.isIntersecting) {
+                const img = entry.target;
+                img.src = img.dataset.src;
+                img.removeAttribute('data-src');
+                imageObserver.unobserve(img);
+              }
+            });
+          });
+          lazyImages.forEach(img => imageObserver.observe(img));
+        };
+        return { init };
+      })();
+
+      // Initialize All Modules
+      document.addEventListener('DOMContentLoaded', () => {
+        ThemeToggle.init();
+        CustomCursor.init();
+        ProgressBar.init();
+        Animations.init();
+        NightBackground.init();
+        CoinAnimation.init();
+        LayoutAdjustments.init();
+        ScrollHandling.init();
+        BurgerMenu.init();
+        Search.init();
+        LazyLoading.init();
       });
-    </script>
-
-    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
-    <script>
-      window.Pi = window.Pi || {};
-      try {
-        Pi.init({ version: "2.0", sandbox: true }, () => {
-          console.log("Pi Network App running in Sandbox mode!");
-        });
-      } catch (error) {
-        console.error("Failed to initialize Pi Network SDK:", error);
-      }
     </script>
 </body>
 </html>
